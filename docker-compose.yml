@@ -1,0 +1,31 @@
+# Isolated Hermes Agent. State lives in ./data; the only other host folders the agent can see are ./workspace and ./vault
+services:
+  hermes:
+    image: nousresearch/hermes-agent@sha256:c69536a39e885b8943329bda68cdf44492458b96aa74a212239bde9d2aeb406a  # = :stable as of 2026-10-14 (v0.22.0). Back up before updating
+    container_name: hermes
+    command: ["gateway", "run"]
+    restart: unless-stopped    # always on (Telegram); stop with: docker compose down
+    stop_grace_period: 45s     # let the gateway shut down cleanly (previous restarts were logged as UNCLEAN)
+    volumes:
+      - ./data:/opt/data       # config, .env, memory, skills
+      - ./workspace:/opt/data/workspace # only shared working folder with the host (inside /opt/data because of Hermes' write policy)
+      - ./vault:/opt/data/notes # dedicated Obsidian vault (NOT named "vault": Hermes blocks reads of $HERMES_HOME/vault as its credential store)
+      - hermes-installs:/opt/data/installs # managed Python envs (audio extras); named volume because macOS bind mounts are case-insensitive
+    # No "ports:" -> nothing exposed to the host or the local network
+    # No network_mode: host -> isolated bridge network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:                   # minimum needed for the init (s6) to switch user and fix permissions
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+      - FOWNER
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 2
+
+volumes:
+  hermes-installs:

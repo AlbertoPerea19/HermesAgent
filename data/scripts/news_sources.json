@@ -1,0 +1,189 @@
+{
+  "window_hours": 30,
+  "max_items_total": 220,
+  "sources": [
+    {
+      "name": "La Jornada",
+      "region": "MX",
+      "note": "Mexican daily",
+      "max": 8,
+      "url": "https://www.jornada.com.mx/rss/politica.xml?v=1"
+    },
+    {
+      "name": "El Financiero",
+      "region": "MX",
+      "note": "Mexican business daily",
+      "max": 8,
+      "url": "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/?outputType=xml"
+    },
+    {
+      "name": "Expansion Politica",
+      "region": "MX",
+      "note": "Mexican business/politics outlet",
+      "max": 8,
+      "url": "https://politica.expansion.mx/rss"
+    },
+    {
+      "name": "El Pais Mexico",
+      "region": "MX",
+      "note": "Spanish group, Mexico edition",
+      "max": 8,
+      "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/mexico/portada"
+    },
+    {
+      "name": "Infobae Mexico",
+      "region": "MX",
+      "note": "Argentine-owned digital outlet",
+      "max": 8,
+      "url": "https://www.infobae.com/arc/outboundfeeds/rss/category/mexico/"
+    },
+    {
+      "name": "Mexico News Daily",
+      "region": "MX",
+      "note": "English-language outlet in Mexico",
+      "max": 8,
+      "url": "https://mexiconewsdaily.com/feed/"
+    },
+    {
+      "name": "El Universal",
+      "region": "MX",
+      "note": "Mexican daily (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:eluniversal.com.mx+(politica+OR+gobierno+OR+Sheinbaum+OR+Congreso)+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Milenio",
+      "region": "MX",
+      "note": "Mexican daily (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:milenio.com+(politica+OR+gobierno+OR+Sheinbaum+OR+Congreso)+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Proceso",
+      "region": "MX",
+      "note": "Mexican weekly/news site (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:proceso.com.mx+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Reforma",
+      "region": "MX",
+      "note": "Mexican daily, paywalled (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:reforma.com+(politica+OR+gobierno+OR+Sheinbaum+OR+Congreso)+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Animal Politico",
+      "region": "MX",
+      "note": "Mexican digital outlet (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:animalpolitico.com+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Aristegui Noticias",
+      "region": "MX",
+      "note": "Mexican digital outlet (headlines via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:aristeguinoticias.com+when:1d&hl=es-419&gl=MX&ceid=MX:es-419"
+    },
+    {
+      "name": "Reuters",
+      "region": "WORLD",
+      "note": "Wire service (via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:reuters.com+world+when:1d&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "name": "AP",
+      "region": "WORLD",
+      "note": "Wire service (via Google News)",
+      "max": 8,
+      "url": "https://news.google.com/rss/search?q=site:apnews.com+world+when:1d&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "name": "BBC World",
+      "region": "WORLD",
+      "note": "UK public broadcaster",
+      "max": 8,
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+      "name": "Al Jazeera",
+      "region": "WORLD",
+      "note": "Qatar state-funded broadcaster",
+      "max": 8,
+      "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+      "name": "DW",
+      "region": "WORLD",
+      "note": "German publicly funded broadcaster",
+      "max": 8,
+      "url": "https://rss.dw.com/rdf/rss-en-world"
+    },
+    {
+      "name": "France 24",
+      "region": "WORLD",
+      "note": "French state-funded broadcaster",
+      "max": 8,
+      "url": "https://www.france24.com/en/rss"
+    },
+    {
+      "name": "The Guardian",
+      "region": "WORLD",
+      "note": "UK daily, Scott Trust",
+      "max": 8,
+      "url": "https://www.theguardian.com/world/rss"
+    },
+    {
+      "name": "NPR World",
+      "region": "WORLD",
+      "note": "US public media",
+      "max": 8,
+      "url": "https://feeds.npr.org/1004/rss.xml"
+    },
+    {
+      "name": "SCMP",
+      "region": "WORLD",
+      "note": "Hong Kong English-language daily",
+      "max": 8,
+      "url": "https://www.scmp.com/rss/91/feed"
+    },
+    {
+      "name": "Times of India",
+      "region": "WORLD",
+      "note": "Indian private daily",
+      "max": 8,
+      "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms"
+    },
+    {
+      "name": "The Hindu",
+      "region": "WORLD",
+      "note": "Indian private daily",
+      "max": 8,
+      "url": "https://www.thehindu.com/news/international/feeder/default.rss"
+    },
+    {
+      "name": "Foreign Policy",
+      "region": "WORLD",
+      "note": "US foreign-affairs magazine",
+      "max": 8,
+      "url": "https://foreignpolicy.com/feed/"
+    },
+    {
+      "name": "Crisis Group",
+      "region": "WORLD",
+      "note": "Non-profit conflict think tank",
+      "max": 8,
+      "url": "https://www.crisisgroup.org/rss.xml"
+    },
+    {
+      "name": "Infobae America",
+      "region": "WORLD",
+      "note": "Argentine private outlet, Latin America desk",
+      "max": 8,
+      "url": "https://www.infobae.com/arc/outboundfeeds/rss/category/america/"
+    }
+  ],
+  "include_summary": false
+}

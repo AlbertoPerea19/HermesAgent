@@ -1,0 +1,29 @@
+# Whitelist: everything is ignored except the files that define the deployment.
+# State (sessions, memory, auth, .env, caches, logs, notes) lives only on the machine that runs Hermes.
+*
+!.gitignore
+!README.md
+!env.example
+!docker-compose.yml
+!check.sh
+!check_inner.py
+!spend.sh
+!deploy.sh
+!ops/
+!ops/*.sh
+!data/
+!data/config.yaml
+!data/SOUL.md
+!data/scripts/
+!data/scripts/*.py
+!data/scripts/news_sources.json
+!data/skills/
+!data/skills/education/
+!data/skills/education/english-tutor/
+!data/skills/education/english-tutor/**
+!data/skills/research/
+!data/skills/research/parallel-research/
+!data/skills/research/parallel-research/**
+!data/skills/finance/
+!data/skills/finance/finance-analyst/
+!data/skills/finance/finance-analyst/**
