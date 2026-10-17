@@ -2551,7 +2551,7 @@ onboarding:
     tool_progress_prompt: true
 mcp_servers:
   maybe:
-    url: http://host.docker.internal:3000/api/mcp
+    url: ${MAYBE_MCP_URL}
     headers:
       Authorization: Bearer ${MAYBE_MCP_TOKEN}
     timeout: 60
