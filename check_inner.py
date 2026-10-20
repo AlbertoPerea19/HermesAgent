@@ -63,7 +63,9 @@ stt = cfg.get("stt", {})
 prov = stt.get("provider")
 (ok if prov == "groq" else warn)(f"stt provider = {prov}" + (" (needs GROQ_API_KEY)" if prov == "groq" else ""))
 if prov == "groq":
-    (ok if os.environ.get("GROQ_API_KEY") else bad)("GROQ_API_KEY present in the container environment")
+    envtxt = (home / ".env").read_text(errors="ignore") if (home / ".env").exists() else ""
+    has_key = bool(os.environ.get("GROQ_API_KEY")) or bool(re.search(r"^GROQ_API_KEY=.+", envtxt, re.M))
+    (ok if has_key else bad)("GROQ_API_KEY set in data/.env")
 try:
     from tools.tts_tool import check_tts_requirements
     (ok if check_tts_requirements() else bad)(f"text-to-speech available (provider {cfg.get('tts', {}).get('provider')}); if not, run ops/bootstrap-audio.sh")

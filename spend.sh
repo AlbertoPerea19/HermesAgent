@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 # Show OpenRouter spend. Makes no model calls (reads /key, /credits, /models and agent.log only).
 # Usage: ./spend.sh
 cd "$(dirname "$0")" || exit 1
