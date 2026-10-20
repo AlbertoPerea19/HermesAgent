@@ -56,3 +56,26 @@ for j in jobs:
 for j in jobs:
     if j.get("no_agent"):
         ok(f"cron '{j['name']}' runs without a model (script only, 0 tokens)")
+
+# ---- voice (tutor listening/speaking) ----
+import re
+stt = cfg.get("stt", {})
+prov = stt.get("provider")
+(ok if prov == "groq" else warn)(f"stt provider = {prov}" + (" (needs GROQ_API_KEY)" if prov == "groq" else ""))
+if prov == "groq":
+    (ok if os.environ.get("GROQ_API_KEY") else bad)("GROQ_API_KEY present in the container environment")
+try:
+    from tools.tts_tool import check_tts_requirements
+    (ok if check_tts_requirements() else bad)(f"text-to-speech available (provider {cfg.get('tts', {}).get('provider')}); if not, run ops/bootstrap-audio.sh")
+except Exception as e:
+    warn(f"could not check TTS requirements: {e}")
+log = home / "logs" / "agent.log"
+if log.exists():
+    today = __import__("datetime").date.today().isoformat()
+    secs = n = 0.0
+    for line in log.read_text(errors="ignore").splitlines()[-20000:]:
+        if line.startswith(today) and "Transcribed " in line:
+            n += 1
+            m = re.search(r"([\d.]+)s audio", line)
+            secs += float(m.group(1)) if m else 0
+    (ok if secs <= 3600 else warn)(f"voice notes transcribed today: {int(n)} ({secs/60:.1f} min of audio; Groq free tier ~480 min/day)")

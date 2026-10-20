@@ -6,10 +6,12 @@ groups headlines about the same story across outlets, and writes the full note p
 Prints a short, scannable Telegram message on stdout (delivered as is by the no-agent cron job; Hermes converts the
 markdown to Telegram format). Standard library only. Always exits 0.
 """
+import json
 import os
 import re
 import sys
 import unicodedata
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,8 +23,8 @@ import news_collect as nc  # noqa: E402
 INBOX = Path(os.environ.get("BRIEFING_INBOX", "/opt/data/notes/Inbox"))
 MAX_STORIES = 8          # stories per region in the note
 MAX_SINGLES = 6          # single-outlet stories in the note
-TG_STORIES = 4           # stories per region in the Telegram message
-TG_LIMIT = 3600          # Telegram allows 4096 characters
+TG_STORIES = 6           # stories per region in the Telegram message
+TG_LIMIT = 3950          # Telegram allows 4096 characters
 MAX_CLUSTER = 8
 
 DROP = re.compile(
@@ -53,6 +55,17 @@ STOP = set(
     "los las del las una uno unos unas por con para que como pero sus este esta estos estas sobre entre tras "
     "desde hasta mas muy ser fue son han hay ante contra segun sin tambien durante mientras cada otro otra".split()
 )
+# Approximate editorial lean (common media-bias consensus, not a measurement). Shown to the reader and the model.
+LEAN = {
+    "La Jornada": "izquierda, afín al gobierno", "Proceso": "izquierda crítica", "Aristegui Noticias": "izquierda independiente",
+    "Animal Politico": "centro-izquierda", "El Pais Mexico": "centro-izquierda", "Milenio": "centro",
+    "El Financiero": "centro empresarial", "Expansion Politica": "centro empresarial", "Mexico News Daily": "centro",
+    "El Universal": "centro-derecha", "Reforma": "derecha liberal, crítico del gobierno", "Infobae Mexico": "centro-derecha",
+    "Infobae America": "centro-derecha", "Reuters": "agencia", "AP": "agencia", "BBC World": "centro",
+    "Al Jazeera": "financiado por Qatar", "DW": "centro", "France 24": "centro", "The Guardian": "centro-izquierda",
+    "NPR World": "centro-izquierda", "SCMP": "propiedad de Alibaba, mira a China", "Times of India": "centro-derecha",
+    "The Hindu": "centro-izquierda", "Foreign Policy": "centro liberal", "Crisis Group": "ONG de conflictos",
+}
 WEEKDAYS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 MIN_DT = datetime.min.replace(tzinfo=timezone.utc)
@@ -141,6 +154,111 @@ def outlets_of(group):
     return seen
 
 
+def summarize(top, singles):
+    """One cheap model call that turns grouped headlines into short Spanish summaries.
+
+    Returns {"stories": {first item id of the group: {title, body}}, "singles": [str]} or None on any failure,
+    in which case the caller falls back to the model-free format.
+    """
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        return None
+    payload = []
+    for g in (g for r in top.values() for g in r):
+        payload.append({"id": g[0]["id"], "headlines": [f'{i["outlet"]} [{LEAN.get(i["outlet"], "?")}]: {i["title"]}' for i in g][:6],
+                        "snippets": [(i.get("summary") or "")[:220] for i in g if len(i.get("summary") or "") > 50][:2]})
+    if not payload:
+        return None
+    single_lines = [f'{i["outlet"]}: {i["title"]}' for i in singles]
+    system = (
+        "You write a Spanish (Mexico) news digest for one reader from raw headlines and snippets. Use ONLY facts present "
+        "in the input; never add background, titles, roles (e.g. president, former), numbers or names that are not there. If outlets disagree, say so. "
+        "Return JSON: {\"stories\":[{\"id\":int,\"title\":str,\"body\":str,\"framing\":str}],\"singles\":[str]}. "
+        "title: neutral Spanish headline, max 90 chars, no outlet names. body: 2 plain sentences, max 230 chars: what "
+        "happened, then what is pending (only if the input supports it). framing: ONE sentence, max 200 chars, contrasting how "
+        "outlets of different lean present it, naming them (e.g. 'La Jornada lo enmarca como X; Reforma destaca Y'), based only on "
+        "their headlines; if they frame it alike or the input does not show it, return an empty string. Do not guess intent. "
+        "singles: one Spanish line "
+        "(max 110 chars) per single-outlet input, same order, WITHOUT the outlet name. "
+        "No markdown, no emojis."
+    )
+    user = "STORIES:\n" + json.dumps(payload, ensure_ascii=False) + "\nSINGLES:\n" + json.dumps(single_lines, ensure_ascii=False)
+    body = json.dumps({"model": os.environ.get("BRIEFING_MODEL", "qwen/qwen3.7-flash"), "temperature": 0.2,
+                       "max_tokens": 4000, "reasoning": {"enabled": False}, "response_format": {"type": "json_object"},
+                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
+    try:
+        req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body,
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            text = json.load(r)["choices"][0]["message"]["content"]
+        data = json.loads(text)
+        out = {}
+        for s in data["stories"]:
+            if isinstance(s.get("id"), int) and str(s.get("title", "")).strip() and str(s.get("body", "")).strip():
+                out[s["id"]] = {"title": esc(s["title"].strip()), "body": esc(s["body"].strip()), "framing": esc(str(s.get("framing", "")).strip())}
+        if not out:
+            return None
+        return {"stories": out, "singles": [esc(str(t).strip()) for t in data.get("singles", [])][:3]}
+    except Exception as e:
+        if os.environ.get("BRIEFING_DEBUG"):
+            print(f"summarize failed: {e!r}", file=sys.stderr)
+        return None
+
+
+def cluster_with_model(items):
+    """Ask the model to group headlines about the same event (any language) and write the summaries in one call.
+
+    Returns (stories {"MX": [group, ...], "WORLD": [...]}, ai dict shaped like summarize()'s) or None on failure.
+    """
+    key = os.environ.get("OPENROUTER_API_KEY")
+    cands = sorted((i for i in items if i["political"]), key=lambda i: i["date"] or MIN_DT, reverse=True)[:170]
+    if not key or len(cands) < 6:
+        return None
+    by_id = {i["id"]: i for i in cands}
+    lines = [f'{i["id"]}|{i["outlet"]} [{LEAN.get(i["outlet"], "?")}]|{i["title"][:150]}' for i in cands]
+    system = (
+        "You build a Spanish (Mexico) political news digest for one reader from headlines (id|outlet [lean]|headline), "
+        "in Spanish and English. Group headlines that report the SAME single event, even across languages. Never merge different events or countries into one group; if unsure, leave the headline out. The title and body must describe exactly one event. Keep only groups with "
+        "at least 2 different outlets, preferring groups whose outlets have different lean. Pick up to 7 groups about Mexico "
+        "(region MX) and up to 7 about the rest of the world (region WORLD), ordered by importance (government, security, "
+        "economy, conflicts, diplomacy) and then by breadth of coverage. Ignore sports and entertainment. Use ONLY facts "
+        "present in the headlines; never add background, titles, roles, numbers or names that are not there. "
+        "Return JSON {\"stories\":[{\"region\":\"MX\"|\"WORLD\",\"ids\":[int],\"title\":str,\"body\":str,\"framing\":str}]}. "
+        "title: neutral Spanish headline, max 90 chars, no outlet names. body: 2 plain sentences, max 220 chars: what happened, "
+        "then what is pending (only if the input supports it). framing: ONE sentence, max 200 chars, ONLY when outlets of "
+        "different lean visibly present the story differently (emphasis, blame, word choice), naming them, e.g. "
+        "'La Jornada subraya X; Reforma destaca Y'. Otherwise return an empty string; never invent a contrast. No markdown, no emojis."
+    )
+    body = json.dumps({"model": os.environ.get("BRIEFING_MODEL", "qwen/qwen3.7-flash"), "temperature": 0.2,
+                       "max_tokens": 6000, "reasoning": {"enabled": False}, "response_format": {"type": "json_object"},
+                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": "\n".join(lines)}]}).encode()
+    try:
+        req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body,
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(json.load(r)["choices"][0]["message"]["content"])
+        stories, texts, used = {"MX": [], "WORLD": []}, {}, set()
+        for st in data["stories"]:
+            ids = [i for i in dict.fromkeys(st.get("ids", [])) if i in by_id and i not in used]
+            group = [by_id[i] for i in ids]
+            region = st.get("region")
+            if region not in stories or len({g["outlet"] for g in group}) < 2 or len(stories[region]) >= 7:
+                continue
+            if not str(st.get("title", "")).strip() or not str(st.get("body", "")).strip():
+                continue
+            used.update(ids)
+            stories[region].append(group)
+            texts[group[0]["id"]] = {"title": esc(st["title"].strip()), "body": esc(st["body"].strip()),
+                                     "framing": esc(str(st.get("framing", "")).strip())}
+        if not texts:
+            return None
+        return stories, {"stories": texts, "singles": []}
+    except Exception as e:
+        if os.environ.get("BRIEFING_DEBUG"):
+            print(f"cluster_with_model failed: {e!r}", file=sys.stderr)
+        return None
+
+
 def main():
     now = datetime.now(timezone.utc)
     local = now.astimezone(ZoneInfo("America/Mexico_City"))
@@ -190,7 +308,10 @@ def main():
         elif is_political(g):
             single.extend(g)
 
-    multi.sort(key=lambda g: (-len({i["outlet"] for i in g}), -newest(g).timestamp()))
+    def diversity(g):
+        return len({LEAN.get(i["outlet"], i["outlet"]) for i in g})
+
+    multi.sort(key=lambda g: (-diversity(g), -len({i["outlet"] for i in g}), -newest(g).timestamp()))
     stories = {"MX": [], "WORLD": []}
     for g in multi:
         r = region_of(g)
@@ -203,6 +324,10 @@ def main():
         if it["outlet"] not in seen and len(singles) < MAX_SINGLES:
             singles.append(it)
             seen.add(it["outlet"])
+
+    preai = cluster_with_model(items)
+    if preai:
+        stories = preai[0]
 
     # ---- full note (English, for the notes folder) ----
     described = set()
@@ -270,11 +395,45 @@ def main():
         parts.append(foot)
         return "\n".join(parts)
 
+    def build_ai(ai, limit):
+        """Plain text on purpose: the cron path does not render markdown, so no bold or link syntax."""
+        parts = [f"📰 Resumen político · {WEEKDAYS[local.weekday()]} {local.day} {MONTHS[local.month - 1]}"]
+        for region, header in (("MX", "🇲🇽 MÉXICO"), ("WORLD", "🌍 MUNDO")):
+            rows = [(g, ai["stories"].get(g[0]["id"])) for g in stories[region][:limit]]
+            rows = [(g, a) for g, a in rows if a]
+            if not rows:
+                continue
+            parts.append(f"\n{header}")
+            for k, (g, a) in enumerate(rows, 1):
+                rep = representative(g)
+                block = [f"\n{k}. {a['title']}", a["body"], f"Fuentes: {' · '.join(f'{n} ({LEAN[n]})' if n in LEAN and LEAN[n] != 'agencia' else n for n in outlets_of(g)[:4])}"]
+                if a.get("framing"):
+                    block.insert(2, f"🔎 {a['framing']}")
+                link = next((i["link"] for i in sorted(g, key=lambda i: "google" in i["link"]) if i.get("link")), "")
+                if link and "news.google.com" not in link:
+                    block.append(link)
+                parts.append("\n".join(block))
+        if ai["singles"]:
+            parts.append("\n👀 TAMBIÉN")
+            parts += [f"• {t} — {singles[n]['outlet']}" for n, t in enumerate(ai["singles"][:len(singles)])]
+        foot = f"\nNota completa: Inbox/{day}-news-briefing.md"
+        if problems:
+            foot += f"\nFuentes sin respuesta: {len(problems)}"
+        parts.append(foot)
+        return "\n".join(parts)
+
     limit = TG_STORIES
-    message = build(limit)
-    while len(message) > TG_LIMIT and limit > 1:
-        limit -= 1
+    ai = preai[1] if preai else summarize({r: stories[r][:limit] for r in stories}, singles[:3])
+    if ai:
+        message = build_ai(ai, limit)
+        while len(message) > TG_LIMIT and limit > 1:
+            limit -= 1
+            message = build_ai(ai, limit)
+    else:
         message = build(limit)
+        while len(message) > TG_LIMIT and limit > 1:
+            limit -= 1
+            message = build(limit)
     print(message)
 
 

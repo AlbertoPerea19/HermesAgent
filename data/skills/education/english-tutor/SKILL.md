@@ -1,7 +1,7 @@
 ---
 name: english-tutor
 description: Use ONLY when the user explicitly asks for an English lesson, vocabulary, grammar, TOEFL or C1 practice, or when the scheduled daily lesson runs. Never use for ambiguous or non-English-learning requests; ask instead.
-version: 1.0.0
+version: 1.1.0
 author: Owner, Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -55,6 +55,15 @@ Rules for the live exchange:
 - Prefer recasts and short explanations; give the rule in one sentence.
 - Keep each message under about 150 words unless presenting a reading passage.
 
+## Audio Practice
+
+Only when the learner asks for listening or speaking, or the focus block calls for it. Keep the text short; one task per message.
+
+- **Listening:** write a passage of 60-90 words at the learner's level, send it with the text-to-speech tool, then ask 3 short comprehension questions. Do not print the passage until the answers are in; offer it afterwards.
+- **Speaking:** give a prompt and ask for a voice note of 20-60 seconds. The transcript arrives as the learner's message. Reply with: the transcript in one line, the one or two most important grammar or word-choice fixes, a more natural rephrasing, and a note on words the recognizer seems to have misheard (a hint at unclear speech, not proof). Add the recurring patterns to `Errors.md` as usual.
+- If a voice note has no transcript or is cut off, ask for a shorter one; do not guess its content.
+- Prefer replying in text. Use a voice reply only for listening tasks or when the learner asks for it.
+
 ## Placement
 
 When `Profile.md` says the level is pending, run the placement in `references/placement-test.md` over one or two sessions. Never ask the learner to self-report a level.
@@ -72,7 +81,8 @@ Once a week (or on request): compare error counts and vocabulary boxes, run a sh
 
 ## Limits
 
-- Audio (listening and speaking) is not available while TTS and STT are off. Practice those skills with text proxies and say so plainly; do not pretend to assess pronunciation.
+- Audio is available when the text-to-speech tool is in your tool list. If it is missing or fails, fall back to text proxies and say so plainly.
+- You can judge intelligibility, not pronunciation: the transcript shows what a speech recognizer understood, not how each sound was produced. Never give a pronunciation score or name specific phonemes as faulty.
 - TOEFL format details are approximate; see `references/toefl-format.md` and tell the learner to confirm with ETS before test day.
 - Do not put credentials or personal data in the vault.
 
