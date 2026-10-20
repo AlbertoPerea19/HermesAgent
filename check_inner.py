@@ -66,11 +66,14 @@ if prov == "groq":
     envtxt = (home / ".env").read_text(errors="ignore") if (home / ".env").exists() else ""
     has_key = bool(os.environ.get("GROQ_API_KEY")) or bool(re.search(r"^GROQ_API_KEY=.+", envtxt, re.M))
     (ok if has_key else bad)("GROQ_API_KEY set in data/.env")
+import subprocess
 try:
-    from tools.tts_tool import check_tts_requirements
-    (ok if check_tts_requirements() else bad)(f"text-to-speech available (provider {cfg.get('tts', {}).get('provider')}); if not, run ops/bootstrap-audio.sh")
+    # same activation as the gateway (a bare python process does not see the installs volume)
+    out = subprocess.run(["hermes", "doctor"], capture_output=True, text=True, timeout=90).stdout
+    tts_ok = any("tts" in l.lower() and "\u2713" in l for l in out.splitlines())
+    (ok if tts_ok else bad)(f"text-to-speech available (provider {cfg.get('tts', {}).get('provider')}); if not, run ops/bootstrap-audio.sh")
 except Exception as e:
-    warn(f"could not check TTS requirements: {e}")
+    warn(f"could not run hermes doctor: {e}")
 log = home / "logs" / "agent.log"
 if log.exists():
     today = __import__("datetime").date.today().isoformat()
