@@ -154,13 +154,27 @@ def outlets_of(group):
     return seen
 
 
+def api_key():
+    """Cron scripts do not inherit secrets, so fall back to reading the key from the agent's own .env file."""
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if key:
+        return key
+    try:
+        for line in Path(os.environ.get("HERMES_HOME", "/opt/data"), ".env").read_text().splitlines():
+            if line.startswith("OPENROUTER_API_KEY="):
+                return line.split("=", 1)[1].strip().strip("\"'")
+    except OSError:
+        pass
+    return None
+
+
 def summarize(top, singles):
     """One cheap model call that turns grouped headlines into short Spanish summaries.
 
     Returns {"stories": {first item id of the group: {title, body}}, "singles": [str]} or None on any failure,
     in which case the caller falls back to the model-free format.
     """
-    key = os.environ.get("OPENROUTER_API_KEY")
+    key = api_key()
     if not key:
         return None
     payload = []
@@ -210,7 +224,7 @@ def cluster_with_model(items):
 
     Returns (stories {"MX": [group, ...], "WORLD": [...]}, ai dict shaped like summarize()'s) or None on failure.
     """
-    key = os.environ.get("OPENROUTER_API_KEY")
+    key = api_key()
     cands = sorted((i for i in items if i["political"]), key=lambda i: i["date"] or MIN_DT, reverse=True)[:170]
     if not key or len(cands) < 6:
         return None
@@ -392,6 +406,7 @@ def main():
         foot = f"\nNota completa: Inbox/{day}-news-briefing.md"
         if problems:
             foot += f"\nFuentes sin respuesta: {len(problems)}"
+        foot += "\n(Formato básico: el resumen con IA no estuvo disponible hoy)"
         parts.append(foot)
         return "\n".join(parts)
 
