@@ -2550,6 +2550,8 @@ tts:
   provider: piper
   edge:
     voice: en-US-AriaNeural
+  piper:
+    voice: en_US-ryan-high
 onboarding:
   seen:
     tool_progress_prompt: true
