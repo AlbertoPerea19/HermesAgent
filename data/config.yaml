@@ -2547,7 +2547,7 @@ known_builtin_toolsets:
     - yuanbao
 timezone: America/Mexico_City
 tts:
-  provider: edge
+  provider: piper
   edge:
     voice: en-US-AriaNeural
 onboarding:
